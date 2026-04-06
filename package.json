@@ -1,0 +1,22 @@
+{
+  "name": "music-be",
+  "version": "1.0.0",
+  "description": "Back-end servuce fo music database",
+  "author": "M-IV",
+  "license": "ISC",
+  "type": "module",
+  "main": "src/index.ts",
+    "scripts": {
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "check": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+    "devDependencies": {
+    
+  },
+  "dependencies": {
+    
+  }
+}
