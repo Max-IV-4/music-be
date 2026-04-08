@@ -9,6 +9,7 @@ function shutdown() {
     server.close(async() => {
         await accountingService.save()
         logger.info("server closed")
+        process.exit(0)
     })
 }
 process.on("SIGINT", shutdown);
