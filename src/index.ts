@@ -8,7 +8,7 @@ function shutdown() {
     logger.debug("shutdown has called")
     server.close(async() => {
         await accountingService.save()
-        logger.info("server closed; data saved if updated")
+        logger.info("server closed")
     })
 }
 process.on("SIGINT", shutdown);

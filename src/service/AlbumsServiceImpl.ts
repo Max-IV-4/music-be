@@ -1,44 +1,37 @@
 import { Album } from "../models/Album.js"
 import { Track } from "../models/Track.js"
 import AlbumsService from "./AlbumsService.js"
-import supabase from "../utils/supabase.js"
+import db from "../utils/db.js"
 import { AlbumNotFound } from "./shared/service-errors.js"
 import logger from "../logger.js"
 
-class AlbumsServiceSupabase implements AlbumsService {
+class AlbumsServiceKnex implements AlbumsService {
 
     async getAllAlbums(): Promise<Album[]> {
-        const { data, error } = await supabase
-            .from("album")
-            .select("album_id, title, artist(name)")
-        if (error) throw error
-        const albums: Album[] = data.map((row: any) => ({
-            album_id: row.album_id,
-            title: row.title,
-            artist_name: row.artist?.name ?? null
-        }))
-        logger.debug(`received ${albums.length} album objects`)
-        return albums
+        const rows = await db("album")
+            .join("artist", "album.artist_id", "artist.artist_id")
+            .select("album.album_id", "album.title", "artist.name as artist_name")
+        logger.debug(`received ${rows.length} album objects`)
+        return rows
     }
 
     async getAlbumTracks(albumId: number): Promise<Track[]> {
-        const { data, error } = await supabase
-            .from("track")
-            .select("name, genre(name), media_type(name)")
-            .eq("album_id", albumId)
-        if (error) throw error
-        if (data.length === 0) {
+        const tracks: Track[] = await db("track")
+            .leftJoin("genre", "track.genre_id", "genre.genre_id")
+            .leftJoin("media_type", "track.media_type_id", "media_type.media_type_id")
+            .select(
+                "track.name",
+                "genre.name as genre_name",
+                "media_type.name as media_type_name"
+            )
+            .where("track.album_id", albumId)
+        if (tracks.length === 0) {
             throw new AlbumNotFound(albumId)
         }
-        const tracks: Track[] = data.map((row: any) => ({
-            name: row.name,
-            genre_name: row.genre?.name ?? null,
-            media_type_name: row.media_type?.name ?? null
-        }))
         logger.debug(`received ${tracks.length} tracks for album ${albumId}`)
         return tracks
     }
 }
 
-const albumsService: AlbumsService = new AlbumsServiceSupabase()
+const albumsService: AlbumsService = new AlbumsServiceKnex()
 export default albumsService

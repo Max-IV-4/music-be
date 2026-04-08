@@ -1,45 +1,40 @@
 import { Playlist } from "../models/Playlist.js"
 import { Track } from "../models/Track.js"
 import PlaylistsService from "./PlaylistsService.js"
-import supabase from "../utils/supabase.js"
+import db from "../utils/db.js"
 import { PlaylistNotFound } from "./shared/service-errors.js"
 import logger from "../logger.js"
 
-class PlaylistsServiceSupabase implements PlaylistsService {
+class PlaylistsServiceKnex implements PlaylistsService {
 
     async getAllPlaylists(): Promise<Playlist[]> {
-        const { data, error } = await supabase
-            .from("playlist")
-            .select("playlist_id, name")
-        if (error) throw error
-        logger.debug(`received ${data.length} playlist objects`)
-        return data
+        const playlists = await db("playlist")
+            .select("playlist_id", "name")
+        logger.debug(`received ${playlists.length} playlist objects`)
+        return playlists
     }
 
     async getPlaylistTracks(playlistId: number): Promise<Track[]> {
-        const { data: playlist, error: playlistError } = await supabase
-            .from("playlist")
-            .select("playlist_id")
-            .eq("playlist_id", playlistId)
-            .maybeSingle()
-        if (playlistError) throw playlistError
+        const playlist = await db("playlist")
+            .where("playlist_id", playlistId)
+            .first()
         if (!playlist) {
             throw new PlaylistNotFound(playlistId)
         }
-        const { data, error } = await supabase
-            .from("playlist_track")
-            .select("track(name, genre(name), media_type(name))")
-            .eq("playlist_id", playlistId)
-        if (error) throw error
-        const tracks: Track[] = data.map((row: any) => ({
-            name: row.track.name,
-            genre_name: row.track.genre?.name ?? null,
-            media_type_name: row.track.media_type?.name ?? null
-        }))
+        const tracks: Track[] = await db("playlist_track")
+            .join("track", "playlist_track.track_id", "track.track_id")
+            .leftJoin("genre", "track.genre_id", "genre.genre_id")
+            .leftJoin("media_type", "track.media_type_id", "media_type.media_type_id")
+            .select(
+                "track.name",
+                "genre.name as genre_name",
+                "media_type.name as media_type_name"
+            )
+            .where("playlist_track.playlist_id", playlistId)
         logger.debug(`received ${tracks.length} tracks for playlist ${playlistId}`)
         return tracks
     }
 }
 
-const playlistsService: PlaylistsService = new PlaylistsServiceSupabase()
+const playlistsService: PlaylistsService = new PlaylistsServiceKnex()
 export default playlistsService
